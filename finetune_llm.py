@@ -1,4 +1,8 @@
-from maze_dataset import create_dataset
+from maze_dataset import create_dataset, save_to_file, read_from_file, check_valid_path
+import re
+import ast
+import torch
+# from transformers import AutoModelForCausalLM, AutoTokenizer, pipeline
 
 
 def format_path(path):
@@ -24,16 +28,89 @@ def format_path(path):
     return directions
 
 
-def format_dataset(maze_data):
-    dataset = []
-    for maze in maze_data:
-        path = " ".join(format_path(maze['path']))
-        res = f"""Input format:\n{maze['maze']}\n\nOutput:\n{path}"""
-        dataset.append(res)
+def create_prompt(maze):
+    prompt = f"""Solve this maze by finding a path from S to E.
 
-    return dataset
+    Maze:
+    {maze['maze']}
+
+    Legend:
+    - S = Start position
+    - E = End position  
+    - # = Wall (cannot pass through)
+
+    Rules:
+    - You can only move up, down, left, or right (no diagonal moves)
+    - You cannot pass through walls (#)
+    - Provide the solution as a list of coordinates
+
+    Output format:
+    [[row, col], [row, col], ...]
+
+    For example: [[0, 0], [0, 1], [1, 1], [1, 2]]
+
+    Solution:"""
+
+    return prompt
 
 
-training_data = create_dataset(num=1000)
-training_data = format_dataset(training_data)
-print(training_data[0])
+# def load_llm_model(model_name='microsoft/Phi-3-mini-128k-instruct'):
+#     torch.random.manual_seed(0) 
+#     tokenizer = AutoTokenizer.from_pretrained(model_name) 
+#     model = AutoModelForCausalLM.from_pretrained( 
+#         model_name,  
+#         device_map="cuda",  
+#         torch_dtype=torch.bfloat16,  
+#         trust_remote_code=True,  
+#     ) 
+#     return model, tokenizer
+
+
+def generate_llm_res(model, tokenizer, messages):
+    prompt_text = tokenizer.apply_chat_template(
+      messages,
+      tokenize=False,
+      add_generation_prompt=True
+    )
+    inputs = tokenizer(prompt_text, return_tensors="pt").to(model.device)
+
+    outputs = model.generate(
+        **inputs,
+        max_new_tokens=512,
+        temperature=0.1,
+        do_sample=True,
+        top_p=0.9
+    )
+
+    response = tokenizer.decode(outputs[0], skip_special_tokens=True)
+    return response
+
+
+def evaluate_response(maze, llm_response):
+    paths = re.findall(r'\[\s*\[\s*\d+\s*,\s*\d+\s*\](?:\s*,\s*\[\s*\d+\s*,\s*\d+\s*\])*\s*\]', llm_response)
+    paths = [ast.literal_eval(p) for p in paths]
+
+    for path in reversed(paths):
+        if check_valid_path(maze, path):
+            return True
+        
+    return False
+
+    
+
+# def format_dataset(maze_data):
+#     dataset = []
+#     for maze in maze_data:
+#         path = " ".join(format_path(maze['path']))
+#         res = f"""Input format:\n{maze['maze']}\n\nOutput:\n{path}"""
+#         dataset.append(res)
+
+#     return dataset
+
+
+training_data = create_dataset(num=10)
+save_to_file(training_data)
+data = read_from_file()
+print(data[0])
+# training_data = format_dataset(data)
+print(check_valid_path(data[0], data[0]['paths'][0]))

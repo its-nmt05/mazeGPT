@@ -1,9 +1,11 @@
 from mazelib import Maze
 from mazelib.generate.Prims import Prims
-from mazelib.solve.Collision import Collision
+from mazelib.solve.ShortestPaths import ShortestPaths
 import random 
 import matplotlib.pyplot as plt
 from tqdm import tqdm
+import json
+
 
 SIZE = 7    # we use only square mazes
 
@@ -35,8 +37,16 @@ def create_maze(size=7, start=None, end=None, seed=None):
 
 
 def solve_maze(maze):
-    maze.solver = Collision()
+    maze.solver = ShortestPaths()
     maze.solve()
+
+    solns = []
+    for soln in maze.solutions:
+        soln.insert(0, maze.start)
+        soln.append(maze.end)
+        solns.append(soln)
+
+    maze.solutions = solns
 
 
 # visualize the maze 
@@ -70,16 +80,51 @@ def create_dataset(size_min=5, size_max=10, num=10000):
         maze = create_maze(size=curr_size)
         grid = str(maze)
         solve_maze(maze)
-        soln = maze.solutions[0]
+        paths = maze.solutions
         training_data.append({
             'maze': grid,
-            'path': soln
+            'grid': maze.grid.tolist(),
+            'start': maze.start,
+            'end': maze.end,
+            'paths': paths
         })
 
     return training_data
 
 
+def check_valid_path(maze, path):
+    grid = maze['grid']
+    start = maze['start']
+    end = maze['end']
+    R, C = len(grid), len(grid[0])
+
+    if path[0] != start and path[-1] != end:
+        return False
+    
+    for (r1,c1), (r2,c2) in zip(path, path[1:]):
+        if abs(r1-r2) + abs(c1-c2) != 1:
+            return False
+        if not (0 < r2 < R and 0 < c2 < C):
+            return False
+        if grid[r2][c2] == 1:
+            return False
+        
+    return True
+
+
+def save_to_file(dataset, filename='./maze_data.json'):
+    with open(filename, 'w') as f:
+        json.dump(dataset, f)
+
+    
+def read_from_file(filename='./maze_data.json'):
+    with open(filename, 'r') as f:
+        dataset = json.load(f)
+    return dataset
+
+
 def test():
-    mz = create_maze(seed=42)
+    mz = create_maze(seed=420)
     solve_maze(mz)
     visualize_maze(mz)
+
