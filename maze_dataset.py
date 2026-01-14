@@ -17,7 +17,7 @@ def sample_loc(size=7, exclude_boundary=True):
         return(random.randrange(size), random.randrange(size))
     
 
-def create_maze(size=7, start=None, end=None, seed=None):
+def create_maze(size, start=None, end=None, seed=None):
     if start == end and start != None:
         raise ValueError("start and end can't be same")
 
@@ -75,20 +75,36 @@ def visualize_maze(maze):
 
 def create_dataset(size_min=5, size_max=10, num=10000):
     training_data = []
-    for _ in tqdm(range(num), desc="Creating mazes: "):
+    for i in tqdm(range(num), desc="Creating mazes"):
         curr_size = random.randrange(size_min, size_max)
         maze = create_maze(size=curr_size)
         grid = str(maze)
         solve_maze(maze)
         paths = maze.solutions
+        
+        shortest_length = min(len(path) for path in paths) if paths else 0
+        complexity_ratio = shortest_length / (curr_size * curr_size)
+
+        if complexity_ratio < 0.3:
+            difficulty = "easy"
+        elif complexity_ratio < 0.6:
+            difficulty = "medium"
+        else:
+            difficulty = "hard"
+        
         training_data.append({
+            'maze_id': f'maze_{i:06d}',
             'maze': grid,
             'grid': maze.grid.tolist(),
             'start': maze.start,
             'end': maze.end,
-            'paths': paths
+            'size': [maze.grid.shape[0], maze.grid.shape[1]],
+            'paths': paths,
+            'shortest_path_length': shortest_length,
+            'num_solutions': len(paths),
+            'difficulty': difficulty
         })
-
+    
     return training_data
 
 
@@ -97,7 +113,7 @@ def check_valid_path(maze, path):
     start = maze['start']
     end = maze['end']
     R, C = len(grid), len(grid[0])
-
+    print(path)
     if path[0] != start and path[-1] != end:
         return False
     

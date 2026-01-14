@@ -2,7 +2,7 @@ from maze_dataset import create_dataset, save_to_file, read_from_file, check_val
 import re
 import ast
 import torch
-# from transformers import AutoModelForCausalLM, AutoTokenizer, pipeline
+from transformers import AutoModelForCausalLM, AutoTokenizer, pipeline
 
 
 def format_path(path):
@@ -31,7 +31,7 @@ def format_path(path):
 def create_prompt(maze):
     prompt = f"""Solve this maze by finding a path from S to E.
 
-    Maze:
+    Maze:\n
     {maze['maze']}
 
     Legend:
@@ -54,25 +54,20 @@ def create_prompt(maze):
     return prompt
 
 
-# def load_llm_model(model_name='microsoft/Phi-3-mini-128k-instruct'):
-#     torch.random.manual_seed(0) 
-#     tokenizer = AutoTokenizer.from_pretrained(model_name) 
-#     model = AutoModelForCausalLM.from_pretrained( 
-#         model_name,  
-#         device_map="cuda",  
-#         torch_dtype=torch.bfloat16,  
-#         trust_remote_code=True,  
-#     ) 
-#     return model, tokenizer
+def load_llm_model(model_name='microsoft/Phi-3-mini-128k-instruct'):
+    torch.random.manual_seed(0) 
+    tokenizer = AutoTokenizer.from_pretrained(model_name) 
+    model = AutoModelForCausalLM.from_pretrained( 
+        model_name,  
+        device_map="cuda",  
+        torch_dtype=torch.bfloat16,  
+        trust_remote_code=True,  
+    ) 
+    return model, tokenizer
 
 
-def generate_llm_res(model, tokenizer, messages):
-    prompt_text = tokenizer.apply_chat_template(
-      messages,
-      tokenize=False,
-      add_generation_prompt=True
-    )
-    inputs = tokenizer(prompt_text, return_tensors="pt").to(model.device)
+def generate_llm_res(model, tokenizer, prompt):
+    inputs = tokenizer(prompt, return_tensors="pt").to(model.device)
 
     outputs = model.generate(
         **inputs,
@@ -108,9 +103,12 @@ def evaluate_response(maze, llm_response):
 #     return dataset
 
 
-training_data = create_dataset(num=10)
+training_data = create_dataset(num=10, size_min=3, size_max=6)
 save_to_file(training_data)
-data = read_from_file()
-print(data[0])
-# training_data = format_dataset(data)
-print(check_valid_path(data[0], data[0]['paths'][0]))
+# data = read_from_file()
+# prompt = create_prompt(data[0])
+# print(prompt)
+
+# model, tokenizer = load_llm_model("gpt2-medium")
+# response = generate_llm_res(model, tokenizer, prompt)
+# print(response)
