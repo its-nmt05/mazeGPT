@@ -6,7 +6,8 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 import json
 
-SIZE = 7 
+
+SIZE = 7    # we use only square mazes
 
 
 def sample_loc(size=7, exclude_boundary=True):
